@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gloucester Gazette — Feedly to Substack Pipeline</title>
+  <meta name="description" content="Effortlessly sync Feedly saved items, download municipal meeting minutes PDFs, generate journalistic articles with Gemini, and publish to Substack.">
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <!-- Global App Header -->
+  <header class="app-header" id="app-header">
+    <div class="header-inner">
+      <div class="header-branding">
+        <div class="brand-symbol">📰</div>
+        <div>
+          <h1 class="brand-title">Gloucester Gazette</h1>
+          <p class="brand-subtitle">Feedly Saved Items &rarr; PDF Ingestion &rarr; Substack Publisher</p>
+        </div>
+      </div>
+
+      <div class="header-metrics" id="header-metrics">
+        <div class="metric-pill" id="metric-feedly" title="Feedly Saved Items">
+          <span class="metric-label">Feedly</span>
+          <span class="metric-value" id="val-feedly-count">0</span>
+        </div>
+        <div class="metric-pill" id="metric-downloaded" title="Downloaded PDFs">
+          <span class="metric-label">PDFs</span>
+          <span class="metric-value" id="val-pdf-count">0</span>
+        </div>
+        <div class="metric-pill" id="metric-generated" title="Generated Articles">
+          <span class="metric-label">Articles</span>
+          <span class="metric-value" id="val-articles-count">0</span>
+        </div>
+        <div class="metric-pill" id="metric-published" title="Published to Substack">
+          <span class="metric-label">Published</span>
+          <span class="metric-value" id="val-published-count">0</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span class="mode-badge" id="app-mode-badge" title="App runtime mode">🌐 Checking...</span>
+        <button type="button" class="btn btn-secondary" id="btn-sync-feedly">
+          <span class="btn-icon">↻</span> Sync Feedly
+        </button>
+        <button type="button" class="btn btn-outline" id="btn-open-settings" aria-label="Settings">
+          <span class="btn-icon">⚙</span> Settings
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notice Banner (if credentials needed) -->
+  <div class="notice-bar hidden" id="notice-bar">
+    <div class="notice-content">
+      <span class="notice-icon">⚠️</span>
+      <span id="notice-message">Feedly or Gemini is not configured yet. Set up your access keys in Settings to start.</span>
+    </div>
+    <button type="button" class="btn btn-sm btn-notice" id="btn-notice-action">Open Settings</button>
+  </div>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="nav-tabs" id="nav-tabs" aria-label="Pipeline Stages">
+    <button type="button" class="tab-btn active" id="tab-btn-feedly" data-tab="tab-feedly">
+      <span class="tab-step">1</span> Feedly Saved Items
+    </button>
+    <button type="button" class="tab-btn" id="tab-btn-articles" data-tab="tab-articles">
+      <span class="tab-step">2</span> Article Newsroom (<span id="tab-badge-articles">0</span>)
+    </button>
+    <button type="button" class="tab-btn" id="tab-btn-editor" data-tab="tab-editor">
+      <span class="tab-step">3</span> Substack Publisher & Review
+    </button>
+  </nav>
+
+  <!-- Main Content Layout -->
+  <main class="app-main" id="app-main">
+
+    <!-- ============================================================== -->
+    <!-- TAB 1: Feedly Saved Items & PDF Ingestion                      -->
+    <!-- ============================================================== -->
+    <section class="tab-pane active" id="tab-feedly">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Saved Items from Feedly</h2>
+          <p class="panel-desc">Articles, municipal agendas, and meeting minutes bookmarked in your Feedly account.</p>
+        </div>
+        <div class="panel-tools">
+          <input type="search" class="search-input" id="feedly-search-input" placeholder="Search saved items by title or source..." aria-label="Search saved items">
+          <button type="button" class="btn btn-secondary" id="btn-trigger-upload-pdf" title="Upload a municipal minutes PDF from your device">
+            <span class="btn-icon">📁</span> Upload PDF
+          </button>
+          <input type="file" id="input-upload-pdf" accept="application/pdf" multiple style="display:none">
+          <button type="button" class="btn btn-outline" id="btn-trigger-import-json" title="Import Feedly items or exported JSON">
+            <span class="btn-icon">📥</span> Import JSON
+          </button>
+          <input type="file" id="input-import-json" accept=".json" style="display:none">
+          <button type="button" class="btn btn-primary" id="btn-download-all-pdfs">
+            <span class="btn-icon">⬇</span> Download All New PDFs
+          </button>
+        </div>
+      </div>
+
+      <div class="dropzone-banner" id="pdf-dropzone" title="Drag and drop any PDF file here">
+        <span class="dropzone-icon">📄</span>
+        <div class="dropzone-text">
+          <strong>Drop municipal minutes PDF here</strong> or click "Upload PDF" to ingest and parse directly in your browser.
+        </div>
+      </div>
+
+      <div class="feedly-list-container" id="feedly-list-container">
+        <!-- Rendered dynamically -->
+        <div class="empty-state" id="feedly-empty-state">
+          <div class="empty-icon">📥</div>
+          <h3>No Feedly items synced yet</h3>
+          <p>Click "Sync Feedly" to fetch bookmarked municipal minutes from your Feedly account.</p>
+          <button type="button" class="btn btn-primary" id="btn-empty-sync">Sync Feedly Now</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: Article Newsroom & Generator                            -->
+    <!-- ============================================================== -->
+    <section class="tab-pane" id="tab-articles">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Local Newsroom Pipeline</h2>
+          <p class="panel-desc">All tracked documents, downloaded PDFs, and AI-generated newsletter columns.</p>
+        </div>
+        <div class="panel-tools">
+          <div class="filter-group" id="articles-filter-group" role="radiogroup" aria-label="Filter items by status">
+            <button type="button" class="filter-btn active" data-filter="all">All (<span id="filter-count-all">0</span>)</button>
+            <button type="button" class="filter-btn" data-filter="pdf_downloaded">Ready to Generate (<span id="filter-count-ready">0</span>)</button>
+            <button type="button" class="filter-btn" data-filter="article_generated">Generated (<span id="filter-count-generated">0</span>)</button>
+            <button type="button" class="filter-btn" data-filter="published">Published (<span id="filter-count-published">0</span>)</button>
+          </div>
+          <input type="search" class="search-input" id="articles-search-input" placeholder="Filter articles by title or keyword..." aria-label="Filter articles">
+          <button type="button" class="btn btn-secondary" id="btn-batch-generate">
+            <span class="btn-icon">⚡</span> Batch Generate All Ready
+          </button>
+        </div>
+      </div>
+
+      <!-- Articles Grid -->
+      <div class="articles-grid" id="articles-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: Substack Editorial Review & Exporter                   -->
+    <!-- ============================================================== -->
+    <section class="tab-pane" id="tab-editor">
+      <div class="editor-header">
+        <div class="editor-header-info">
+          <span class="status-badge" id="editor-status-badge">Draft</span>
+          <span class="meta-item" id="editor-source-link">Source: None</span>
+          <span class="meta-item" id="editor-word-count">0 words</span>
+        </div>
+
+        <div class="editor-header-actions">
+          <button type="button" class="btn btn-secondary" id="btn-copy-headline" title="Copy article headline">
+            Copy Title
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-copy-markdown" title="Copy Markdown source">
+            Copy Markdown
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-download-markdown" title="Download article as Markdown (.md) file">
+            <span class="btn-icon">💾</span> Download .md
+          </button>
+          <button type="button" class="btn btn-highlight" id="btn-copy-substack-html" title="Copy rich formatted HTML formatted for Substack">
+            <span class="btn-icon">📋</span> Copy Rich HTML for Substack
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-open-substack" title="Open Substack new post draft in a new browser tab">
+            <span class="btn-icon">🚀</span> Open Substack
+          </button>
+          <button type="button" class="btn btn-success" id="btn-mark-published" title="Mark this column as published">
+            <span class="btn-icon">✓</span> Mark Published
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-container" id="editor-container">
+        <!-- Left: Editable Markdown & Title -->
+        <div class="editor-pane editor-left">
+          <div class="field-group">
+            <label for="editor-input-title" class="field-label">Headline / Column Title</label>
+            <input type="text" class="input-text title-input" id="editor-input-title" placeholder="Catchy, accurate newspaper headline..." />
+          </div>
+
+          <div class="field-group flex-1">
+            <div class="field-label-row">
+              <label for="editor-textarea-body" class="field-label">Article Column (Markdown)</label>
+              <button type="button" class="btn-link" id="btn-save-draft">Save Changes</button>
+            </div>
+            <textarea class="textarea-markdown" id="editor-textarea-body" placeholder="Article text will appear here..."></textarea>
+          </div>
+        </div>
+
+        <!-- Right: Live Substack Preview -->
+        <div class="editor-pane editor-right">
+          <div class="preview-header">
+            <span class="preview-label">Substack Newsletter Preview</span>
+            <span class="preview-subdomain" id="preview-subdomain">gloucestergazette.substack.com</span>
+          </div>
+          <div class="substack-preview-card">
+            <h1 class="preview-title" id="preview-title">Article Headline</h1>
+            <div class="preview-byline">
+              <span class="byline-author">Nick Felker</span> • <span class="byline-date" id="preview-date">Today</span>
+            </div>
+            <hr class="preview-divider" />
+            <div class="preview-body" id="preview-body">
+              <p class="text-muted">Select an article from the Newsroom tab to preview and export it to Substack.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: Settings                                                -->
+  <!-- ============================================================== -->
+  <div class="modal-overlay hidden" id="modal-settings">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 class="modal-title">Settings & Credentials</h2>
+        <button type="button" class="btn-close" id="btn-close-settings" aria-label="Close Settings">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Feedly Settings -->
+        <div class="settings-section">
+          <div class="section-title-row">
+            <h3 class="section-title">Feedly API Configuration</h3>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-import-obsidian" title="Import Feedly Access Token from ~/dev/feedly-for-obsidian/.env">
+              ⚡ Import from Obsidian Plugin
+            </button>
+          </div>
+          <p class="section-desc">
+            Obtain your Developer Access Token and User ID from <a href="https://feedly.com/v3/auth/dev" target="_blank" rel="noopener noreferrer">feedly.com/v3/auth/dev</a>. (Tokens expire monthly).
+          </p>
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <div class="field-label-row">
+                <label for="cfg-feedly-token" class="form-label">Developer Access Token</label>
+                <button type="button" class="btn-link btn-toggle-pw" data-target="cfg-feedly-token">Show</button>
+              </div>
+              <input type="password" class="input-text" id="cfg-feedly-token" placeholder="Feedly Access Token..." autocomplete="off">
+            </div>
+            <div class="form-group flex-1">
+              <label for="cfg-feedly-user" class="form-label">Feedly User ID</label>
+              <input type="text" class="input-text" id="cfg-feedly-user" placeholder="e.g. ef7c998b-..." autocomplete="off">
+            </div>
+          </div>
+          <div class="test-row">
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-test-feedly">Test Feedly Connection</button>
+            <span class="test-status" id="status-test-feedly"></span>
+          </div>
+        </div>
+
+        <!-- Google Gemini Settings -->
+        <div class="settings-section">
+          <h3 class="section-title">Google Gemini AI Configuration</h3>
+          <p class="section-desc">
+            Used to summarize minutes and synthesize local investigative journalism articles. Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com</a>.
+          </p>
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <div class="field-label-row">
+                <label for="cfg-gemini-key" class="form-label">Gemini API Key</label>
+                <button type="button" class="btn-link btn-toggle-pw" data-target="cfg-gemini-key">Show</button>
+              </div>
+              <input type="password" class="input-text" id="cfg-gemini-key" placeholder="AIzaSy..." autocomplete="off">
+            </div>
+            <div class="form-group flex-1">
+              <label for="cfg-gemini-model" class="form-label">Model</label>
+              <input type="text" class="input-text" id="cfg-gemini-model" value="gemini-3.8-flash" placeholder="gemini-3.8-flash">
+            </div>
+          </div>
+          <div class="test-row">
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-test-gemini">Test Gemini Connection</button>
+            <span class="test-status" id="status-test-gemini"></span>
+          </div>
+        </div>
+
+        <!-- Substack Settings -->
+        <div class="settings-section">
+          <h3 class="section-title">Substack Publication</h3>
+          <p class="section-desc">The URL of your Substack publication where you write and publish posts.</p>
+
+          <div class="form-group">
+            <label for="cfg-substack-url" class="form-label">Publication URL</label>
+            <input type="url" class="input-text" id="cfg-substack-url" placeholder="https://gloucestergazette.substack.com">
+          </div>
+        </div>
+
+        <!-- Cross-Origin & GitHub Pages Settings -->
+        <div class="settings-section">
+          <h3 class="section-title">GitHub Pages & Cross-Origin Proxy</h3>
+          <p class="section-desc">When running statically on GitHub Pages, Feedly API and municipal PDF downloads require a CORS proxy to bypass browser restrictions.</p>
+
+          <div class="form-group">
+            <label for="cfg-cors-proxy" class="form-label">CORS Proxy URL</label>
+            <input type="text" class="input-text" id="cfg-cors-proxy" placeholder="https://corsproxy.io/?url=" value="https://corsproxy.io/?url=">
+            <small class="field-hint">Default is <code>https://corsproxy.io/?url=</code>. Leave blank if direct browser requests work or if using a custom proxy.</small>
+          </div>
+
+          <div class="config-transfer-row">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-export-config">📤 Export Settings JSON</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-import-config">📥 Import Settings JSON</button>
+            <input type="file" id="input-config-file" accept=".json" style="display:none">
+          </div>
+        </div>
+
+        <!-- Custom Prompt Settings -->
+        <div class="settings-section">
+          <h3 class="section-title">Journalist Prompt & Style Guide</h3>
+          <p class="section-desc">Customize the instructions given to Gemini when generating local newspaper articles.</p>
+
+          <div class="form-group">
+            <textarea class="textarea-prompt" id="cfg-prompt" rows="6"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-settings">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: Inspect Webpage PDF Links                               -->
+  <!-- ============================================================== -->
+  <div class="modal-overlay hidden" id="modal-inspect-pdf">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 class="modal-title">PDF Links Found on Page</h2>
+        <button type="button" class="btn-close" id="btn-close-inspect" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-inspect-body">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-inspect">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- Client-side libraries for GitHub Pages mode -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
+  <!-- Application Logic -->
+  <script src="./js/app.js"></script>
+</body>
+</html>

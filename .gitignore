@@ -1,0 +1,17 @@
+*.pdf
+*-report.md
+reports/
+dl/
+node_modules/
+lib/
+.env
+.env*
+*.env
+data/
+*.log
+.DS_Store
+gloucester-gazette-settings.json
+gdrive.js
+newsletter-sync.json
+src/*.json
+
