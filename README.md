@@ -49,10 +49,7 @@ Deploying takes under 1 minute:
 
 ```bash
 # In this directory:
-git init -b main
-git remote add origin git@github.com:<your-username>/gloucester-gazette.git
-git add .
-git commit -m "Initial commit of Gloucester Gazette newsroom app"
+git remote add origin git@github.com:Fleker/feedly-newsmaker.git
 git push -u origin main
 ```
 
@@ -64,11 +61,11 @@ In your GitHub repository:
    - **Deploy from a branch**: Select branch `main` and folder `/docs`. Click **Save**!
    - **GitHub Actions**: Uses the pre-configured workflow in `.github/workflows/deploy-pages.yml`.
 3. Your web app will be live at:
-   `https://<your-username>.github.io/gloucester-gazette/`
+   `https://fleker.github.io/feedly-newsmaker/`
 
 ### Step 3: Enter Keys Once on Your Personal Device
 
-1. Open `https://<your-username>.github.io/gloucester-gazette/` on your personal device.
+1. Open `https://fleker.github.io/feedly-newsmaker/` on your personal device.
 2. Click **⚙ Settings** and enter:
    - **Gemini API Key**: From [Google AI Studio](https://aistudio.google.com/app/apikey).
    - **Gemini Model**: `gemini-3.8-flash`.
